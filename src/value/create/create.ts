@@ -200,6 +200,13 @@ function FromIterator(schema: TIterator, references: TSchema[]) {
     return (function* () {})()
   }
 }
+function FromKind(schema: TSchema, references: TSchema[]): any {
+  if (HasPropertyKey(schema, 'default')) {
+    return FromDefault(schema.default)
+  } else {
+    throw new ValueCreateError(schema, 'User defined types must specify a default value')
+  }
+}
 function FromLiteral(schema: TLiteral, references: TSchema[]): any {
   if (HasPropertyKey(schema, 'default')) {
     return FromDefault(schema.default)
@@ -354,7 +361,7 @@ function FromUnion(schema: TUnion, references: TSchema[]): any {
   if (HasPropertyKey(schema, 'default')) {
     return FromDefault(schema.default)
   } else if (schema.anyOf.length === 0) {
-    throw new Error('ValueCreate.Union: Cannot create Union with zero variants')
+    throw new ValueCreateError(schema, 'ValueCreate.Union: Cannot create Union with zero variants')
   } else {
     return Visit(schema.anyOf[0], references)
   }
@@ -375,18 +382,18 @@ function FromUnknown(schema: TUnknown, references: TSchema[]): any {
     return {}
   }
 }
+function FromUnsafe(schema: TUnknown, references: TSchema[]): any {
+  if (HasPropertyKey(schema, 'default')) {
+    return FromDefault(schema.default)
+  } else {
+    return {}
+  }
+}
 function FromVoid(schema: TVoid, references: TSchema[]): any {
   if (HasPropertyKey(schema, 'default')) {
     return FromDefault(schema.default)
   } else {
     return void 0
-  }
-}
-function FromKind(schema: TSchema, references: TSchema[]): any {
-  if (HasPropertyKey(schema, 'default')) {
-    return FromDefault(schema.default)
-  } else {
-    throw new Error('User defined types must specify a default value')
   }
 }
 function Visit(schema: TSchema, references: TSchema[]): unknown {
@@ -453,6 +460,8 @@ function Visit(schema: TSchema, references: TSchema[]): unknown {
       return FromUint8Array(schema_, references_)
     case 'Unknown':
       return FromUnknown(schema_, references_)
+    case 'Unsafe':
+      return FromUnsafe(schema_, references_)
     case 'Void':
       return FromVoid(schema_, references_)
     default:

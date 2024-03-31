@@ -11,7 +11,7 @@ describe('value/cast/Kind', () => {
   // ---------------------------------------------------------
   // Tests
   // ---------------------------------------------------------
-  const T = Type.Unsafe({ [Kind]: 'Kind', default: 'hello' })
+  const T = { [Kind]: 'Kind', default: 'hello' } as never
   const E = 'hello'
   it('Should upcast from string', () => {
     const value = 'hello'

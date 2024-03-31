@@ -32,7 +32,7 @@ import { TypeSystemPolicy } from '../system/index'
 import { TypeBoxError } from '../type/error/index'
 import { Deref } from '../value/deref/index'
 import { Hash } from '../value/hash/index'
-import { Kind } from '../type/symbols/index'
+import { Kind, RefineKind } from '../type/symbols/index'
 
 import { TypeRegistry, FormatRegistry } from '../type/registry/index'
 import { KeyOfPattern } from '../type/keyof/index'
@@ -59,12 +59,14 @@ import type { TObject } from '../type/object/index'
 import type { TPromise } from '../type/promise/index'
 import type { TRecord } from '../type/record/index'
 import type { TRef } from '../type/ref/index'
+import type { Refinement } from '../type/refine/index'
 import type { TRegExp } from '../type/regexp/index'
 import type { TTemplateLiteral } from '../type/template-literal/index'
 import type { TThis } from '../type/recursive/index'
 import type { TTuple } from '../type/tuple/index'
 import type { TUnion } from '../type/union/index'
 import type { TUnknown } from '../type/unknown/index'
+import type { TUnsafe } from '../type/unsafe/index'
 import type { Static, StaticDecode, StaticEncode } from '../type/static/index'
 import type { TString } from '../type/string/index'
 import type { TSymbol } from '../type/symbol/index'
@@ -78,7 +80,7 @@ import { IsArray, IsString, IsNumber, IsBigInt } from '../value/guard/index'
 // ------------------------------------------------------------------
 // TypeGuard
 // ------------------------------------------------------------------
-import { IsSchema } from '../type/guard/type'
+import { IsSchema, IsRefine } from '../type/guard/type'
 // ------------------------------------------------------------------
 // CheckFunction
 // ------------------------------------------------------------------
@@ -184,14 +186,14 @@ namespace LiteralString {
 // ------------------------------------------------------------------
 // Errors
 // ------------------------------------------------------------------
-export class TypeCompilerUnknownTypeError extends TypeBoxError {
-  constructor(public readonly schema: TSchema) {
-    super('Unknown type')
-  }
-}
-export class TypeCompilerTypeGuardError extends TypeBoxError {
+export class TypeCompilerPreflightError extends TypeBoxError {
   constructor(public readonly schema: TSchema) {
     super('Preflight validation check failed to guard for the given schema')
+  }
+}
+export class TypeCompilerRefineError extends TypeBoxError {
+  constructor(public readonly message: string) {
+    super(message)
   }
 }
 // ------------------------------------------------------------------
@@ -443,6 +445,9 @@ export namespace TypeCompiler {
   function* FromUnknown(schema: TUnknown, references: TSchema[], value: string): IterableIterator<string> {
     yield 'true'
   }
+  function* FromUnsafe(schema: TUnsafe, references: TSchema[], value: string): IterableIterator<string> {
+    yield 'true'
+  }
   function* FromVoid(schema: TVoid, references: TSchema[], value: string): IterableIterator<string> {
     yield Policy.IsVoidLike(value)
   }
@@ -450,6 +455,13 @@ export namespace TypeCompiler {
     const instance = state.instances.size
     state.instances.set(instance, schema)
     yield `kind('${schema[Kind]}', ${instance}, ${value})`
+  }
+  function* FromRefine(schema: { [RefineKind]: Refinement[] }, references: TSchema[], value: string): IterableIterator<string> {
+    for (const refinement of schema[RefineKind]) {
+      const instance = state.refinements.size
+      state.refinements.set(instance, refinement)
+      yield `refine(${instance}, ${value})`
+    }
   }
   function* Visit(schema: TSchema, references: TSchema[], value: string, useHoisting: boolean = true): IterableIterator<string> {
     const references_ = IsString(schema.$id) ? [...references, schema] : references
@@ -467,72 +479,52 @@ export namespace TypeCompiler {
         return yield `${functionName}(${value})`
       }
     }
-    switch (schema_[Kind]) {
-      case 'Any':
-        return yield* FromAny(schema_, references_, value)
-      case 'Array':
-        return yield* FromArray(schema_, references_, value)
-      case 'AsyncIterator':
-        return yield* FromAsyncIterator(schema_, references_, value)
-      case 'BigInt':
-        return yield* FromBigInt(schema_, references_, value)
-      case 'Boolean':
-        return yield* FromBoolean(schema_, references_, value)
-      case 'Constructor':
-        return yield* FromConstructor(schema_, references_, value)
-      case 'Date':
-        return yield* FromDate(schema_, references_, value)
-      case 'Function':
-        return yield* FromFunction(schema_, references_, value)
-      case 'Integer':
-        return yield* FromInteger(schema_, references_, value)
-      case 'Intersect':
-        return yield* FromIntersect(schema_, references_, value)
-      case 'Iterator':
-        return yield* FromIterator(schema_, references_, value)
-      case 'Literal':
-        return yield* FromLiteral(schema_, references_, value)
-      case 'Never':
-        return yield* FromNever(schema_, references_, value)
-      case 'Not':
-        return yield* FromNot(schema_, references_, value)
-      case 'Null':
-        return yield* FromNull(schema_, references_, value)
-      case 'Number':
-        return yield* FromNumber(schema_, references_, value)
-      case 'Object':
-        return yield* FromObject(schema_, references_, value)
-      case 'Promise':
-        return yield* FromPromise(schema_, references_, value)
-      case 'Record':
-        return yield* FromRecord(schema_, references_, value)
-      case 'Ref':
-        return yield* FromRef(schema_, references_, value)
-      case 'RegExp':
-        return yield* FromRegExp(schema_, references_, value)
-      case 'String':
-        return yield* FromString(schema_, references_, value)
-      case 'Symbol':
-        return yield* FromSymbol(schema_, references_, value)
-      case 'TemplateLiteral':
-        return yield* FromTemplateLiteral(schema_, references_, value)
-      case 'This':
-        return yield* FromThis(schema_, references_, value)
-      case 'Tuple':
-        return yield* FromTuple(schema_, references_, value)
-      case 'Undefined':
-        return yield* FromUndefined(schema_, references_, value)
-      case 'Union':
-        return yield* FromUnion(schema_, references_, value)
-      case 'Uint8Array':
-        return yield* FromUint8Array(schema_, references_, value)
-      case 'Unknown':
-        return yield* FromUnknown(schema_, references_, value)
-      case 'Void':
-        return yield* FromVoid(schema_, references_, value)
-      default:
-        if (!TypeRegistry.Has(schema_[Kind])) throw new TypeCompilerUnknownTypeError(schema)
-        return yield* FromKind(schema_, references_, value)
+    // --------------------------------------------------------------
+    // Types
+    // --------------------------------------------------------------
+    const kind = schema_[Kind]
+    // prettier-ignore
+    yield * (
+      kind === 'Any' ? FromAny(schema_, references_, value) :
+      kind === 'Array' ? FromArray(schema_, references_, value) :
+      kind === 'AsyncIterator' ? FromAsyncIterator(schema_, references_, value) :
+      kind === 'BigInt' ? FromBigInt(schema_, references_, value) :
+      kind === 'Boolean' ? FromBoolean(schema_, references_, value) :
+      kind === 'Constructor'? FromConstructor(schema_, references_, value) :
+      kind === 'Date' ? FromDate(schema_, references_, value) :
+      kind === 'Function' ? FromFunction(schema_, references_, value) :
+      kind === 'Integer' ? FromInteger(schema_, references_, value) :
+      kind === 'Intersect' ? FromIntersect(schema_, references_, value) :
+      kind === 'Iterator' ? FromIterator(schema_, references_, value) :
+      kind === 'Literal' ? FromLiteral(schema_, references_, value) :
+      kind === 'Never' ? FromNever(schema_, references_, value) :
+      kind === 'Not' ? FromNot(schema_, references_, value) :
+      kind === 'Null' ? FromNull(schema_, references_, value) :
+      kind === 'Number' ? FromNumber(schema_, references_, value) :
+      kind === 'Object' ? FromObject(schema_, references_, value) :
+      kind === 'Promise' ? FromPromise(schema_, references_, value) :
+      kind === 'Record' ? FromRecord(schema_, references_, value) :
+      kind === 'Ref' ? FromRef(schema_, references_, value) :
+      kind === 'RegExp' ? FromRegExp(schema_, references_, value) :
+      kind === 'String' ? FromString(schema_, references_, value) :
+      kind === 'Symbol' ? FromSymbol(schema_, references_, value) :
+      kind === 'TemplateLiteral' ? FromTemplateLiteral(schema_, references_, value) :
+      kind === 'This' ? FromThis(schema_, references_, value) :
+      kind === 'Tuple' ? FromTuple(schema_, references_, value) :
+      kind === 'Undefined' ? FromUndefined(schema_, references_, value) :
+      kind === 'Union' ? FromUnion(schema_, references_, value) :
+      kind === 'Uint8Array' ? FromUint8Array(schema_, references_, value) :
+      kind === 'Unknown' ? FromUnknown(schema_, references_, value) :
+      kind === 'Unsafe' ? FromUnsafe(schema_, references_, value) :
+      kind === 'Void' ? FromVoid(schema_, references_, value) :
+      TypeRegistry.Has(kind) ? FromKind(schema_, references_, value) :
+      []
+    )
+    // --------------------------------------------------------------
+    // Refinement
+    // --------------------------------------------------------------
+    if (IsRefine(schema_)) {
+      yield* FromRefine(schema_, references_, value)
     }
   }
   // ----------------------------------------------------------------
@@ -540,10 +532,11 @@ export namespace TypeCompiler {
   // ----------------------------------------------------------------
   // prettier-ignore
   const state = {
-    language: 'javascript',                   // target language
-    functions: new Map<string, string>(),     // local functions
-    variables: new Map<string, string>(),     // local variables
-    instances: new Map<number, TSchema>()     // exterior kind instances
+    language: 'javascript',                              // target language
+    instances: new Map<number, TSchema>(),               // exterior kind instances
+    refinements: new Map<number, Refinement>(),  // exterior type refinements
+    functions: new Map<string, string>(),                // local functions
+    variables: new Map<string, string>(),                // local variables
   }
   // ----------------------------------------------------------------
   // Compiler Factory
@@ -605,17 +598,19 @@ export namespace TypeCompiler {
     )
     // compiler-reset
     state.language = options.language
+    state.refinements.clear()
     state.variables.clear()
     state.functions.clear()
     state.instances.clear()
-    if (!IsSchema(schema)) throw new TypeCompilerTypeGuardError(schema)
-    for (const schema of references) if (!IsSchema(schema)) throw new TypeCompilerTypeGuardError(schema)
+    if (!IsSchema(schema)) throw new TypeCompilerPreflightError(schema)
+    for (const schema of references) if (!IsSchema(schema)) throw new TypeCompilerPreflightError(schema)
     return Build(schema, references, options)
   }
   /** Compiles a TypeBox type for optimal runtime type checking. Types must be valid TypeBox types of TSchema */
   export function Compile<T extends TSchema>(schema: T, references: TSchema[] = []): TypeCheck<T> {
     const generatedCode = Code(schema, references, { language: 'javascript' })
-    const compiledFunction = globalThis.Function('kind', 'format', 'hash', generatedCode)
+    const compiledFunction = globalThis.Function('kind', 'format', 'refine', 'hash', generatedCode)
+    const refinements = new Map(state.refinements)
     const instances = new Map(state.instances)
     function typeRegistryFunction(kind: string, instance: number, value: unknown) {
       if (!TypeRegistry.Has(kind) || !instances.has(instance)) return false
@@ -624,14 +619,18 @@ export namespace TypeCompiler {
       return checkFunc(schema, value)
     }
     function formatRegistryFunction(format: string, value: string) {
-      if (!FormatRegistry.Has(format)) return false
-      const checkFunc = FormatRegistry.Get(format)!
-      return checkFunc(value)
+      const formatFunc = FormatRegistry.Get(format)
+      return formatFunc === undefined ? false : formatFunc(value)
+    }
+    function typeRefinementFunction(instance: number, value: unknown) {
+      const refinement = refinements.get(instance)!
+      if (refinement === undefined) throw new TypeCompilerRefineError('Refine function not found')
+      return refinement.check(value)
     }
     function hashFunction(value: unknown) {
       return Hash(value)
     }
-    const checkFunction = compiledFunction(typeRegistryFunction, formatRegistryFunction, hashFunction)
+    const checkFunction = compiledFunction(typeRegistryFunction, formatRegistryFunction, typeRefinementFunction, hashFunction)
     return new TypeCheck(schema, references, checkFunction, generatedCode)
   }
 }

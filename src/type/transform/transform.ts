@@ -49,14 +49,12 @@ export class TransformDecodeBuilder<T extends TSchema> {
 export class TransformEncodeBuilder<T extends TSchema, D extends TransformFunction> {
   constructor(private readonly schema: T, private readonly decode: D) { }
   private EncodeTransform<E extends TransformFunction<ReturnType<D>, StaticDecode<T>>>(encode: E, schema: TTransform) {
-    const Encode = (value: unknown) => schema[TransformKind as any].Encode(encode(value as any))
-    const Decode = (value: unknown) => this.decode(schema[TransformKind as any].Decode(value))
-    const Codec = { Encode: Encode, Decode: Decode }
-    return { ...schema, [TransformKind]: Codec }
+    const wrapped_encode = (value: unknown) => schema[TransformKind as any].encode(encode(value as any))
+    const wrapped_decode = (value: unknown) => this.decode(schema[TransformKind as any].decode(value))
+    return { ...schema, [TransformKind]: { encode: wrapped_encode, decode: wrapped_decode } }
   }
   private EncodeSchema<E extends TransformFunction<ReturnType<D>, StaticDecode<T>>>(encode: E, schema: TSchema) {
-    const Codec = { Decode: this.decode, Encode: encode }
-    return { ...schema as TSchema, [TransformKind]: Codec }
+    return { ...schema as TSchema, [TransformKind]: { decode: this.decode, encode } }
   }
   public Encode<E extends TransformFunction<ReturnType<D>, StaticDecode<T>>>(encode: E): TTransform<T, ReturnType<D>> {
     const schema = CloneType(this.schema)
@@ -74,8 +72,8 @@ type TransformStatic<T extends TSchema, P extends unknown[] = []> = T extends TT
 // ------------------------------------------------------------------
 export type TransformFunction<T = any, U = any> = (value: T) => U
 export interface TransformOptions<I extends TSchema = TSchema, O extends unknown = unknown> {
-  Decode: TransformFunction<StaticDecode<I>, O>
-  Encode: TransformFunction<O, StaticDecode<I>>
+  decode: TransformFunction<StaticDecode<I>, O>
+  encode: TransformFunction<O, StaticDecode<I>>
 }
 export interface TTransform<I extends TSchema = TSchema, O extends unknown = unknown> extends TSchema {
   static: TransformStatic<I, this['params']>

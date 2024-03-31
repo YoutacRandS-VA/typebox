@@ -37,7 +37,7 @@ import { type TObject, type TProperties, Object } from '../object/index'
 import { type TIntersect, Intersect } from '../intersect/index'
 import { type TUnion, Union } from '../union/index'
 import { Discard } from '../discard/index'
-import { TransformKind } from '../symbols/index'
+import { RefineKind, TransformKind } from '../symbols/index'
 import { CloneType } from '../clone/type'
 
 import { PartialFromMappedResult, type TPartialFromMappedResult } from './partial-from-mapped-result'
@@ -106,7 +106,7 @@ export function Partial<T extends TSchema>(T: T, options?: SchemaOptions): TPart
 /** `[Json]` Constructs a type where all properties are optional */
 export function Partial(T: TSchema, options: SchemaOptions = {}): any {
   if (IsMappedResult(T)) return PartialFromMappedResult(T, options)
-  const D = Discard(T, [TransformKind, '$id', 'required']) as TSchema
+  const D = Discard(T, [RefineKind, TransformKind, '$id', 'required']) as TSchema
   const R = CloneType(PartialResolve(T), options)
   return { ...D, ...R } as never
 }

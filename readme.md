@@ -75,12 +75,14 @@ License MIT
   - [Mapped](#types-mapped)
   - [Conditional](#types-conditional)
   - [Intrinsic](#types-intrinsic)
-  - [Transform](#types-transform)
   - [Rest](#types-rest)
+  - [Transform](#types-transform)
+  - [Refine](#types-refine)
   - [Guard](#types-guard)
   - [Unsafe](#types-unsafe)
   - [Strict](#types-strict)
 - [Values](#values)
+  - [Parse](#values-parse)
   - [Create](#values-create)
   - [Clone](#values-clone)
   - [Check](#values-check)
@@ -97,12 +99,12 @@ License MIT
   - [Errors](#values-errors)
   - [Mutate](#values-mutate)
   - [Pointer](#values-pointer)
-- [TypeRegistry](#typeregistry)
-  - [Type](#typeregistry-type)
-  - [Format](#typeregistry-format)
-- [TypeCheck](#typecheck)
-  - [Ajv](#typecheck-ajv)
-  - [TypeCompiler](#typecheck-typecompiler)
+- [Registry](#registry)
+  - [Type](#registry-type)
+  - [Format](#registry-format)
+- [Validators](#validators)
+  - [Ajv](#validators-ajv)
+  - [TypeCompiler](#validators-typecompiler)
 - [TypeSystem](#typesystem)
   - [Policies](#typesystem-policies)
 - [Error Function](#error-function)
@@ -1032,34 +1034,6 @@ const C = Type.Capitalize(                           // const C: TTemplateLitera
                                                      // ]>
 ```
 
-<a name='types-transform'></a>
-
-### Transform Types
-
-TypeBox supports value decoding and encoding with Transform types. These types work in tandem with the Encode and Decode functions available on the Value and TypeCompiler submodules. Transform types can be used to convert Json encoded values into constructs more natural to JavaScript. The following creates a Transform type to decode numbers into Dates using the Value submodule.
-
-```typescript
-import { Value } from '@sinclair/typebox/value'
-
-const T = Type.Transform(Type.Number())
-  .Decode(value => new Date(value))                  // decode: number to Date
-  .Encode(value => value.getTime())                  // encode: Date to number
-
-const D = Value.Decode(T, 0)                         // const D = Date(1970-01-01T00:00:00.000Z)
-const E = Value.Encode(T, D)                         // const E = 0
-```
-Use the StaticEncode or StaticDecode types to infer a Transform type.
-```typescript
-import { Static, StaticDecode, StaticEncode } from '@sinclair/typebox'
-
-const T = Type.Transform(Type.Array(Type.Number(), { uniqueItems: true }))         
-  .Decode(value => new Set(value))
-  .Encode(value => [...value])
-
-type D = StaticDecode<typeof T>                      // type D = Set<number>      
-type E = StaticEncode<typeof T>                      // type E = Array<number>
-type T = Static<typeof T>                            // type T = Array<number>
-```
 
 <a name='types-rest'></a>
 
@@ -1081,40 +1055,72 @@ const U = Type.Union(R)                              // const T: TUnion<[
                                                      // ]>
 ```
 
+<a name='types-transform'></a>
+
+### Transform Types
+
+TypeBox supports value encode and decode with Transform types. These types can be used to convert Json values into structures more natural to JavaScript. Transform types are only supported with the Encode and Decode functions available on the Value submodule.
+
+```typescript
+const Timestamp = Type.Transform(Type.Number())
+  .Decode(value => new Date(value))                  // number -> Date
+  .Encode(value => value.getTime())                  // number <- Date
+
+const D = Value.Decode(Timestamp, 0)                 // const D = Date(1970-01-01T00:00:00.000Z)
+const E = Value.Encode(Timestamp, D)                 // const E = 0
+```
+
+<a name='types-refine'></a>
+
+### Refine Types
+
+TypeBox supports additional runtime type checking with the Refine function. This function will apply a set of additional checks to a type which are run immediately following schema validation. Refine types are only supported with Value and TypeCompiler submodules.
+
+```typescript
+const T = Type.Object({                              
+  x: Type.Number(),
+  y: Type.Number()
+})
+
+const S = Type.Refine(T)
+  .Check(value => value.x === value.y, 'x must equal y')
+  .Done()
+
+const R = Value.Check(S, { x: 0, y: 1 })             // const R = false
+
+const E = [...Value.Errors(S, { x: 0, y: 1 })]       // const E = [{
+                                                     //   message: 'x and y must be equal',
+                                                     //   value: { x: 0, y: 1 },
+                                                     //   ...
+                                                     //  }]
+```
+
 <a name='types-unsafe'></a>
 
 ### Unsafe Types
 
-TypeBox supports user defined types with Unsafe. This type allows you to specify both schema representation and inference type. The following creates an Unsafe type with a number schema that infers as string.
+TypeBox supports user defined types with Unsafe. This type enables you to specify both schema representation and inference type. The following creates an Unsafe type for a number schema that infers as string.
 
 ```typescript
 const T = Type.Unsafe<string>({ type: 'number' })    // const T = { type: 'number' }
 
-type T = Static<typeof T>                            // type T = string - ?
+type T = Static<typeof T>                            // type T = string
 ```
-The Unsafe type is often used to create schematics for extended specifications like OpenAPI.
+
+The Unsafe type is often used to create extended schematics for specifications such as OpenAPI.
+
 ```typescript
-
-const Nullable = <T extends TSchema>(schema: T) => Type.Unsafe<Static<T> | null>({ 
-  ...schema, nullable: true 
-})
-
-const T = Nullable(Type.String())                    // const T = {
-                                                     //   type: 'string',
-                                                     //   nullable: true
-                                                     // }
-
-type T = Static<typeof T>                            // type T = string | null
-
-const StringEnum = <T extends string[]>(values: [...T]) => Type.Unsafe<T[number]>({ 
-  type: 'string', enum: values 
-})
-const S = StringEnum(['A', 'B', 'C'])                // const S = {
-                                                     //   enum: ['A', 'B', 'C']
-                                                     // }
-
-type S = Static<typeof T>                            // type S = 'A' | 'B' | 'C'
+const Nullable = <T extends TSchema>(schema: T) => 
+  Type.Unsafe<Static<T> | null>({ ...schema, nullable: true })
 ```
+TypeBox checks Unsafe as Any. Use Refine to apply additional checking rules.
+```typescript
+const Nullable = <T extends TSchema>(schema: T) =>
+  Type.Refine(Type.Unsafe<Static<T> | null>({ ...schema, nullable: true }))
+    .Check(value => value === null ? true : Value.Check(schema, value))
+    .Done()
+```
+
 <a name='types-guard'></a>
 
 ### TypeGuard
@@ -1411,57 +1417,61 @@ ValuePointer.Set(A, '/y', 1)                         // A' = { x: 1, y: 1, z: 0 
 ValuePointer.Set(A, '/z', 1)                         // A' = { x: 1, y: 1, z: 1 }
 ```
 
-<a name='typeregistry'></a>
+<a name='registry'></a>
 
-## TypeRegistry
+## Registry
 
-The TypeBox type system can be extended with additional types and formats using the TypeRegistry and FormatRegistry modules. These modules integrate deeply with TypeBox's internal type checking infrastructure and can be used to create application specific types, or register schematics for alternative specifications.
+TypeBox provides two global registries that can be used to create extended schematics above and beyond the built-in Json Schema types. These registries provide deeper integration with TypeBox's validation infrastructure and can be used to register schematics for alternative specifications, such as Json Type Definition.
 
-<a name='typeregistry-type'></a>
+```typescript
+import { Kind, TypeRegistry, FormatRegistry } from '@sinclair/typebox'
+```
+
+<a name='registry-type'></a>
 
 ### TypeRegistry
 
-Use the TypeRegistry to register a type. The Kind must match the registered type name.
+Use the TypeRegistry to register a new type. These types are registered with a unique type name. This registry function is invoked when observing schematics with a [Kind] property with a value matching the registered type name.
 
 ```typescript
-import { TSchema, Kind, TypeRegistry } from '@sinclair/typebox'
+TypeRegistry.Set('Byte', (schema, value) => {
 
-TypeRegistry.Set('Foo', (schema, value) => value === 'foo')
+  return typeof value === 'number' && value >= 0 && value < 255
+})
 
-const Foo = { [Kind]: 'Foo' } as TSchema 
+const Byte = () => ({ [Kind]: 'Byte' }) as TSchema
 
-const A = Value.Check(Foo, 'foo')                    // const A = true
+const A = Value.Check(Byte(), 128)                   // const A = true
 
-const B = Value.Check(Foo, 'bar')                    // const B = false
+const B = Value.Check(Byte(), 512)                   // const B = false
 ```
 
-<a name='typeregistry-format'></a>
+<a name='registry-format'></a>
 
 ### FormatRegistry
 
-Use the FormatRegistry to register a string format.
+Use the FormatRegistry to register a string format. This registry function is invoked specifically on observing a TString with format keyword specified.
 
 ```typescript
-import { FormatRegistry } from '@sinclair/typebox'
+FormatRegistry.Set('palindrome', (value) => {
 
-FormatRegistry.Set('foo', (value) => value === 'foo')
+  return value === value.split('').reverse().join('')
+})
 
-const T = Type.String({ format: 'foo' })
+const T = Type.String({ format: 'palindrome' })
 
-const A = Value.Check(T, 'foo')                      // const A = true
+const A = Value.Check(T, 'civic')                    // const A = true
 
-const B = Value.Check(T, 'bar')                      // const B = false
+const B = Value.Check(T, 'tiger')                    // const B = false
 ```
 
-<a name='typecheck'></a>
+<a name='validators'></a>
 
-## TypeCheck
+## Validators
 
-TypeBox types target Json Schema Draft 7 and are compatible with any validator that supports this specification. TypeBox also provides a built in type checking compiler designed specifically for TypeBox types that offers high performance compilation and value checking.
+TypeBox targets Json Schema Draft 7 so is compatible with any validator that supports this specification. It also includes a TypeBox specific validation compiler tuned for high performance compile and check. The following sections detail using TypeBox with Ajv and the built in compiler infrastructure.
 
-The following sections detail using Ajv and the TypeBox compiler infrastructure.
-
-<a name='typecheck-ajv'></a>
+<a name='validators-ajv'></a>
 
 ## Ajv
 
@@ -1502,7 +1512,7 @@ const validate = ajv.compile(Type.Object({
 const R = validate({ x: 1, y: 2, z: 3 })             // const R = true
 ```
 
-<a name='typecheck-typecompiler'></a>
+<a name='validators-typecompiler'></a>
 
 ### TypeCompiler
 

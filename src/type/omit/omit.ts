@@ -35,7 +35,7 @@ import { Union, type TUnion } from '../union/index'
 import { Object, type TObject, type TProperties } from '../object/index'
 import { IndexPropertyKeys, type TIndexPropertyKeys } from '../indexed/index'
 import { Discard } from '../discard/index'
-import { TransformKind } from '../symbols/index'
+import { RefineKind, TransformKind } from '../symbols/index'
 import { CloneType } from '../clone/type'
 import { OmitFromMappedKey, type TOmitFromMappedKey } from './omit-from-mapped-key'
 import { OmitFromMappedResult, type TOmitFromMappedResult } from './omit-from-mapped-result'
@@ -123,7 +123,7 @@ export function Omit(T: TSchema, K: any, options: SchemaOptions = {}): any {
   if (IsMappedResult(T)) return OmitFromMappedResult(T, K, options)
   // non-mapped
   const I = IsSchema(K) ? IndexPropertyKeys(K) : (K as string[])
-  const D = Discard(T, [TransformKind, '$id', 'required']) as TSchema
+  const D = Discard(T, [RefineKind, TransformKind, '$id', 'required']) as TSchema
   const R = CloneType(OmitResolve(T, I), options)
   return { ...D, ...R }
 }

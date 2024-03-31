@@ -84,7 +84,7 @@ export class TransformDecodeError extends TypeBoxError {
 // prettier-ignore
 function Default(schema: TSchema, path: string, value: any) {
   try {
-    return IsTransform(schema) ? schema[TransformKind].Decode(value) : value
+    return IsTransform(schema) ? schema[TransformKind].decode(value) : value
   } catch (error) {
     throw new TransformDecodeError(schema, path, value, error as Error)
   }

@@ -12,39 +12,39 @@ describe('value/check/Kind', () => {
   // Tests
   // ------------------------------------------------------------
   it('Should validate', () => {
-    const T = Type.Unsafe({ [Kind]: 'PI' })
+    const T = { [Kind]: 'PI' } as never
     Assert.IsTrue(Value.Check(T, Math.PI))
   })
   it('Should not validate', () => {
-    const T = Type.Unsafe({ [Kind]: 'PI' })
+    const T = { [Kind]: 'PI' } as never
     Assert.IsFalse(Value.Check(T, Math.PI * 2))
   })
   it('Should validate in object', () => {
     const T = Type.Object({
-      x: Type.Unsafe({ [Kind]: 'PI' }),
+      x: { [Kind]: 'PI' } as never,
     })
     Assert.IsTrue(Value.Check(T, { x: Math.PI }))
   })
   it('Should not validate in object', () => {
     const T = Type.Object({
-      x: Type.Unsafe({ [Kind]: 'PI' }),
+      x: { [Kind]: 'PI' } as never,
     })
     Assert.IsFalse(Value.Check(T, { x: Math.PI * 2 }))
   })
   it('Should validate in array', () => {
-    const T = Type.Array(Type.Unsafe({ [Kind]: 'PI' }))
+    const T = Type.Array({ [Kind]: 'PI' } as never)
     Assert.IsTrue(Value.Check(T, [Math.PI]))
   })
   it('Should not validate in array', () => {
-    const T = Type.Array(Type.Unsafe({ [Kind]: 'PI' }))
+    const T = Type.Array({ [Kind]: 'PI' } as never)
     Assert.IsFalse(Value.Check(T, [Math.PI * 2]))
   })
   it('Should validate in tuple', () => {
-    const T = Type.Tuple([Type.Unsafe({ [Kind]: 'PI' })])
+    const T = Type.Tuple([{ [Kind]: 'PI' } as never])
     Assert.IsTrue(Value.Check(T, [Math.PI]))
   })
   it('Should not validate in tuple', () => {
-    const T = Type.Tuple([Type.Unsafe({ [Kind]: 'PI' })])
+    const T = Type.Tuple([{ [Kind]: 'PI' } as never])
     Assert.IsFalse(Value.Check(T, [Math.PI * 2]))
   })
   // ------------------------------------------------------------

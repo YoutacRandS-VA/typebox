@@ -26,18 +26,4 @@ THE SOFTWARE.
 
 ---------------------------------------------------------------------------*/
 
-import type { TSchema, SchemaOptions } from '../schema/index'
-import { Kind } from '../symbols/index'
-
-export interface UnsafeOptions extends SchemaOptions {
-  [Kind]?: string
-}
-export interface TUnsafe<T = unknown> extends TSchema {
-  [Kind]: string
-  static: T
-}
-/** `[Json]` Creates a Unsafe type that will infers as the generic argument T */
-export function Unsafe<T>(options: UnsafeOptions = {}): TUnsafe<T> {
-  const kind = Kind in options ? options[Kind] : 'Unsafe'
-  return { ...options, [Kind]: kind } as never
-}
+export * from './refine'

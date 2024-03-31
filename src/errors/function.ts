@@ -27,7 +27,8 @@ THE SOFTWARE.
 ---------------------------------------------------------------------------*/
 
 import { TSchema } from '../type/schema/index'
-import { Kind } from '../type/symbols/index'
+import { Kind, RefineKind } from '../type/symbols/index'
+import { IsRefinement } from '../type/guard/type'
 import { ValueErrorType } from './errors'
 
 /** Creates an error message using en-US as the default locale */
@@ -127,10 +128,12 @@ export function DefaultErrorFunction(error: ErrorFunctionParameter) {
       return 'Required property'
     case ValueErrorType.Promise:
       return 'Expected Promise'
+    case ValueErrorType.Refine:
+      return IsRefinement(error.schema) ? error.schema.message : 'Refinement Error'
     case ValueErrorType.RegExp:
       return 'Expected string to match regular expression'
-    case ValueErrorType.StringFormatUnknown:
-      return `Unknown format '${error.schema.format}'`
+    case ValueErrorType.StringFormatNotFound:
+      return `The format '${error.schema.format}' has not been registered`
     case ValueErrorType.StringFormat:
       return `Expected string to match '${error.schema.format}' format`
     case ValueErrorType.StringMaxLength:
@@ -159,6 +162,11 @@ export function DefaultErrorFunction(error: ErrorFunctionParameter) {
       return 'Expected union value'
     case ValueErrorType.Void:
       return 'Expected void'
+    // Kinds
+    case ValueErrorType.KindProperty:
+      return `Schema must contain kind property`
+    case ValueErrorType.KindNotFound:
+      return `The kind '${error.schema[Kind]}' has not been registered`
     case ValueErrorType.Kind:
       return `Expected kind '${error.schema[Kind]}'`
     default:

@@ -37,7 +37,7 @@ import { type TIntersect, Intersect } from '../intersect/index'
 import { type TUnion, Union } from '../union/index'
 import { type TObject, type TProperties, Object } from '../object/index'
 
-import { OptionalKind, TransformKind } from '../symbols/index'
+import { OptionalKind, RefineKind, TransformKind } from '../symbols/index'
 import { CloneType } from '../clone/type'
 import { Discard } from '../discard/index'
 
@@ -110,7 +110,7 @@ export function Required<T extends TSchema>(T: T, options: SchemaOptions = {}) {
   if (IsMappedResult(T)) {
     return RequiredFromMappedResult(T, options)
   } else {
-    const D = Discard(T, [TransformKind, '$id', 'required']) as TSchema
+    const D = Discard(T, [RefineKind, TransformKind, '$id', 'required']) as TSchema
     const R = CloneType(RequiredResolve(T) as any, options)
     return { ...D, ...R }
   }

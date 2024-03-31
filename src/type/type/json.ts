@@ -58,6 +58,7 @@ import { ReadonlyOptional, type TReadonlyOptional } from '../readonly-optional/i
 import { Record, type TRecordOrObject } from '../record/index'
 import { Recursive, type TRecursive, type TThis } from '../recursive/index'
 import { Ref, type TRef } from '../ref/index'
+import { Refine, RefineBuilder } from '../refine/index'
 import { Required, type TRequired, type TRequiredFromMappedResult } from '../required/index'
 import { Rest, type TRest } from '../rest/index'
 import { type TSchema, type SchemaOptions } from '../schema/index'
@@ -286,6 +287,10 @@ export class JsonTypeBuilder {
   /** `[Json]` Creates a Ref type. */
   public Ref(unresolved: TSchema | string, options: SchemaOptions = {}) {
     return Ref(unresolved as any, options)
+  }
+  /** `[Json]` Refines a type by applying additional runtime checks */
+  public Refine<T extends TSchema>(schema: T): RefineBuilder<T> {
+    return Refine(schema)
   }
   /** `[Json]` Constructs a type where all properties are required */
   public Required<T extends TMappedResult>(T: T, options?: ObjectOptions): TRequiredFromMappedResult<T>

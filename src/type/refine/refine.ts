@@ -26,18 +26,32 @@ THE SOFTWARE.
 
 ---------------------------------------------------------------------------*/
 
-import type { TSchema, SchemaOptions } from '../schema/index'
-import { Kind } from '../symbols/index'
+import { RefineKind } from '../symbols/index'
+import { TSchema } from '../schema/index'
+import { Static } from '../static/index'
+import { CloneType } from '../clone/type'
+import { IsRefine } from '../guard/type'
 
-export interface UnsafeOptions extends SchemaOptions {
-  [Kind]?: string
+export interface Refinement {
+  check: RefineCheckFunction
+  message: string
 }
-export interface TUnsafe<T = unknown> extends TSchema {
-  [Kind]: string
-  static: T
+
+export type RefineCheckFunction<T extends TSchema = TSchema, S = Static<T>> = (value: S) => boolean
+
+export class RefineBuilder<T extends TSchema> {
+  constructor(private readonly schema: T, private readonly refinements: Refinement[]) {}
+  /** Adds a refinement check to this type */
+  public Check(check: RefineCheckFunction<T>, message: string = ''): RefineBuilder<T> {
+    return new RefineBuilder(this.schema, [...this.refinements, { check, message }])
+  }
+  /** Applies refinement checks and returns the type */
+  public Done(): T {
+    return CloneType(this.schema, { [RefineKind]: [...this.refinements] })
+  }
 }
-/** `[Json]` Creates a Unsafe type that will infers as the generic argument T */
-export function Unsafe<T>(options: UnsafeOptions = {}): TUnsafe<T> {
-  const kind = Kind in options ? options[Kind] : 'Unsafe'
-  return { ...options, [Kind]: kind } as never
+
+/** `[Json]` Refines a type by applying additional runtime checks */
+export function Refine<T extends TSchema>(schema: T): RefineBuilder<T> {
+  return new RefineBuilder(schema, IsRefine(schema) ? schema[RefineKind] : [])
 }

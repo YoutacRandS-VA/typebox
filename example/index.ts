@@ -1,40 +1,21 @@
-import { TypeSystem } from '@sinclair/typebox/system'
+import { Type, TSchema, Static, StaticDecode, TypeGuard } from '@sinclair/typebox'
+import { Value, ValueError, ValueErrorType, TransformDecodeError } from '@sinclair/typebox/value'
 import { TypeCompiler } from '@sinclair/typebox/compiler'
-import { Value, ValuePointer } from '@sinclair/typebox/value'
-import { Type, TypeGuard, Kind, Static, TSchema } from '@sinclair/typebox'
+import { Kind, TypeRegistry, FormatRegistry } from '@sinclair/typebox'
 
-// -----------------------------------------------------------
-// Create: Type
-// -----------------------------------------------------------
+const UnsafeByte = Type.Unsafe<number>({ type: 'byte' })
 
-const T = Type.Object({
-  x: Type.Number(),
-  y: Type.Number(),
-  z: Type.Number(),
-})
+const Byte = Type.Refine(UnsafeByte)
+  .Check((value) => typeof value === 'number')
+  .Check((value) => !isNaN(value))
+  .Check((value) => value >= 0)
+  .Check((value) => value < 256)
+  .Done()
 
-type T = Static<typeof T>
+console.log(Value.Check(Byte, 0)) // false
+console.log(Value.Check(Byte, 255)) // false
+console.log(Value.Check(Byte, -1)) // true
+console.log(Value.Check(Byte, NaN)) // true
 
-console.log(T)
-
-// -----------------------------------------------------------
-// Create: Value
-// -----------------------------------------------------------
-
-const V = Value.Create(T)
-
-console.log(V)
-
-// -----------------------------------------------------------
-// Compile: Type
-// -----------------------------------------------------------
-
-const C = TypeCompiler.Compile(T)
-
-console.log(C.Code())
-
-// -----------------------------------------------------------
-// Check: Value
-// -----------------------------------------------------------
-
-console.log(C.Check(V))
+// Todo: Error Tests
+// Todo: Investigate Error Propogation for Refinements

@@ -83,7 +83,7 @@ export class TransformEncodeError extends TypeBoxError {
 // prettier-ignore
 function Default(schema: TSchema, path: string, value: any) {
   try {
-    return IsTransform(schema) ? schema[TransformKind].Encode(value) : value
+    return IsTransform(schema) ? schema[TransformKind].encode(value) : value
   } catch (error) {
     throw new TransformEncodeError(schema, path, value, error as Error)
   }

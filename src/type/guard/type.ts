@@ -27,7 +27,7 @@ THE SOFTWARE.
 ---------------------------------------------------------------------------*/
 
 import * as ValueGuard from './value'
-import { Kind, Hint, TransformKind, ReadonlyKind, OptionalKind } from '../symbols/index'
+import { Kind, Hint, RefineKind, TransformKind, ReadonlyKind, OptionalKind } from '../symbols/index'
 import { TypeBoxError } from '../error/index'
 import { TransformOptions } from '../transform/index'
 import { TTemplateLiteral, TTemplateLiteralKind } from '../template-literal/index'
@@ -55,6 +55,7 @@ import type { TOptional } from '../optional/index'
 import type { TPromise } from '../promise/index'
 import type { TReadonly } from '../readonly/index'
 import type { TRef } from '../ref/index'
+import type { Refinement } from '../refine/index'
 import type { TRegExp } from '../regexp/index'
 import type { TSchema } from '../schema/index'
 import type { TSymbol } from '../symbol/index'
@@ -435,6 +436,19 @@ export function IsRef(value: unknown): value is TRef {
     IsKindOf(value, 'Ref') &&
     IsOptionalString(value.$id) &&
     ValueGuard.IsString(value.$ref)
+  )
+}
+export function IsRefinement<T>(value: T): value is T & Refinement {
+  return ValueGuard.IsObject(value) && ValueGuard.IsFunction(value.check) && ValueGuard.IsString(value.message)
+}
+/** Returns true if the given value contains a Refinement object */
+export function IsRefine(value: unknown): value is { [RefineKind]: Refinement[] } {
+  // prettier-ignore
+  return (
+    ValueGuard.IsObject(value) && 
+    RefineKind in value && 
+    ValueGuard.IsArray(value[RefineKind]) &&
+    value[RefineKind].every(value => IsRefinement(value))
   )
 }
 /** Returns true if the given value is TRegExp */

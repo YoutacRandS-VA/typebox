@@ -26,6 +26,8 @@ THE SOFTWARE.
 
 ---------------------------------------------------------------------------*/
 
+/** Symbol key applied to refine types */
+export const RefineKind = Symbol.for('TypeBox.Refine')
 /** Symbol key applied to transform types */
 export const TransformKind = Symbol.for('TypeBox.Transform')
 /** Symbol key applied to readonly types */

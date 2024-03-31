@@ -29,11 +29,11 @@ THE SOFTWARE.
 import { TypeSystemPolicy } from '../../system/index'
 import { Deref } from '../deref/index'
 import { Hash } from '../hash/index'
-import { Kind } from '../../type/symbols/index'
+import { Kind, RefineKind } from '../../type/symbols/index'
 import { KeyOfPattern } from '../../type/keyof/index'
 import { ExtendsUndefinedCheck } from '../../type/extends/index'
 import { TypeRegistry, FormatRegistry } from '../../type/registry/index'
-import { TypeBoxError } from '../../type/error/index'
+import { IsRefine } from '../../type/guard/type'
 
 import type { TSchema } from '../../type/schema/index'
 import type { TAsyncIterator } from '../../type/async-iterator/index'
@@ -56,6 +56,7 @@ import type { TObject } from '../../type/object/index'
 import type { TPromise } from '../../type/promise/index'
 import type { TRecord } from '../../type/record/index'
 import type { TRef } from '../../type/ref/index'
+import type { Refinement } from '../../type/refine/index'
 import type { TRegExp } from '../../type/regexp/index'
 import type { TTemplateLiteral } from '../../type/template-literal/index'
 import type { TThis } from '../../type/recursive/index'
@@ -77,14 +78,6 @@ import { IsArray, IsUint8Array, IsDate, IsPromise, IsFunction, IsAsyncIterator, 
 // TypeGuard
 // ------------------------------------------------------------------
 import { IsSchema } from '../../type/guard/type'
-// ------------------------------------------------------------------
-// Errors
-// ------------------------------------------------------------------
-export class ValueCheckUnknownTypeError extends TypeBoxError {
-  constructor(public readonly schema: TSchema) {
-    super(`Unknown type`)
-  }
-}
 // ------------------------------------------------------------------
 // TypeGuards
 // ------------------------------------------------------------------
@@ -352,9 +345,8 @@ function FromString(schema: TString, references: TSchema[], value: any): boolean
     if (!regex.test(value)) return false
   }
   if (IsDefined<string>(schema.format)) {
-    if (!FormatRegistry.Has(schema.format)) return false
-    const func = FormatRegistry.Get(schema.format)!
-    return func(value)
+    const formatFunc = FormatRegistry.Get(schema.format)
+    if (IsUndefined(formatFunc) || !formatFunc(value)) return false
   }
   return true
 }
@@ -406,6 +398,9 @@ function FromUint8Array(schema: TUint8Array, references: TSchema[], value: any):
 function FromUnknown(schema: TUnknown, references: TSchema[], value: any): boolean {
   return true
 }
+function FromUnsafe(schema: TUnknown, references: TSchema[], value: any): boolean {
+  return true
+}
 function FromVoid(schema: TVoid, references: TSchema[], value: any): boolean {
   return TypeSystemPolicy.IsVoidLike(value)
 }
@@ -414,76 +409,61 @@ function FromKind(schema: TSchema, references: TSchema[], value: unknown): boole
   const func = TypeRegistry.Get(schema[Kind])!
   return func(schema, value)
 }
+function FromRefine(schema: { [RefineKind]: Refinement[] }, references: TSchema[], value: string): boolean {
+  const refinements = schema[RefineKind]
+  return refinements.every((refinement) => refinement.check(value))
+}
 function Visit<T extends TSchema>(schema: T, references: TSchema[], value: any): boolean {
   const references_ = IsDefined<string>(schema.$id) ? [...references, schema] : references
   const schema_ = schema as any
-  switch (schema_[Kind]) {
-    case 'Any':
-      return FromAny(schema_, references_, value)
-    case 'Array':
-      return FromArray(schema_, references_, value)
-    case 'AsyncIterator':
-      return FromAsyncIterator(schema_, references_, value)
-    case 'BigInt':
-      return FromBigInt(schema_, references_, value)
-    case 'Boolean':
-      return FromBoolean(schema_, references_, value)
-    case 'Constructor':
-      return FromConstructor(schema_, references_, value)
-    case 'Date':
-      return FromDate(schema_, references_, value)
-    case 'Function':
-      return FromFunction(schema_, references_, value)
-    case 'Integer':
-      return FromInteger(schema_, references_, value)
-    case 'Intersect':
-      return FromIntersect(schema_, references_, value)
-    case 'Iterator':
-      return FromIterator(schema_, references_, value)
-    case 'Literal':
-      return FromLiteral(schema_, references_, value)
-    case 'Never':
-      return FromNever(schema_, references_, value)
-    case 'Not':
-      return FromNot(schema_, references_, value)
-    case 'Null':
-      return FromNull(schema_, references_, value)
-    case 'Number':
-      return FromNumber(schema_, references_, value)
-    case 'Object':
-      return FromObject(schema_, references_, value)
-    case 'Promise':
-      return FromPromise(schema_, references_, value)
-    case 'Record':
-      return FromRecord(schema_, references_, value)
-    case 'Ref':
-      return FromRef(schema_, references_, value)
-    case 'RegExp':
-      return FromRegExp(schema_, references_, value)
-    case 'String':
-      return FromString(schema_, references_, value)
-    case 'Symbol':
-      return FromSymbol(schema_, references_, value)
-    case 'TemplateLiteral':
-      return FromTemplateLiteral(schema_, references_, value)
-    case 'This':
-      return FromThis(schema_, references_, value)
-    case 'Tuple':
-      return FromTuple(schema_, references_, value)
-    case 'Undefined':
-      return FromUndefined(schema_, references_, value)
-    case 'Union':
-      return FromUnion(schema_, references_, value)
-    case 'Uint8Array':
-      return FromUint8Array(schema_, references_, value)
-    case 'Unknown':
-      return FromUnknown(schema_, references_, value)
-    case 'Void':
-      return FromVoid(schema_, references_, value)
-    default:
-      if (!TypeRegistry.Has(schema_[Kind])) throw new ValueCheckUnknownTypeError(schema_)
-      return FromKind(schema_, references_, value)
-  }
+  // --------------------------------------------------------------
+  // Types
+  // --------------------------------------------------------------
+  const kind = schema_[Kind]
+  // prettier-ignore
+  const typeCheck = (
+    kind === 'Any' ? FromAny(schema_, references_, value) :
+    kind === 'Array' ? FromArray(schema_, references_, value) :
+    kind === 'AsyncIterator' ? FromAsyncIterator(schema_, references_, value) :
+    kind === 'BigInt' ? FromBigInt(schema_, references_, value) :
+    kind === 'Boolean' ? FromBoolean(schema_, references_, value) :
+    kind === 'Constructor'? FromConstructor(schema_, references_, value) :
+    kind === 'Date' ? FromDate(schema_, references_, value) :
+    kind === 'Function' ? FromFunction(schema_, references_, value) :
+    kind === 'Integer' ? FromInteger(schema_, references_, value) :
+    kind === 'Intersect' ? FromIntersect(schema_, references_, value) :
+    kind === 'Iterator' ? FromIterator(schema_, references_, value) :
+    kind === 'Literal' ? FromLiteral(schema_, references_, value) :
+    kind === 'Never' ? FromNever(schema_, references_, value) :
+    kind === 'Not' ? FromNot(schema_, references_, value) :
+    kind === 'Null' ? FromNull(schema_, references_, value) :
+    kind === 'Number' ? FromNumber(schema_, references_, value) :
+    kind === 'Object' ? FromObject(schema_, references_, value) :
+    kind === 'Promise' ? FromPromise(schema_, references_, value) :
+    kind === 'Record' ? FromRecord(schema_, references_, value) :
+    kind === 'Ref' ? FromRef(schema_, references_, value) :
+    kind === 'RegExp' ? FromRegExp(schema_, references_, value) :
+    kind === 'String' ? FromString(schema_, references_, value) :
+    kind === 'Symbol' ? FromSymbol(schema_, references_, value) :
+    kind === 'TemplateLiteral' ? FromTemplateLiteral(schema_, references_, value) :
+    kind === 'This' ? FromThis(schema_, references_, value) :
+    kind === 'Tuple' ? FromTuple(schema_, references_, value) :
+    kind === 'Undefined' ? FromUndefined(schema_, references_, value) :
+    kind === 'Union' ? FromUnion(schema_, references_, value) :
+    kind === 'Uint8Array' ? FromUint8Array(schema_, references_, value) :
+    kind === 'Unknown' ? FromUnknown(schema_, references_, value) :
+    kind === 'Unsafe' ? FromUnsafe(schema_, references_, value) :
+    kind === 'Void' ? FromVoid(schema_, references_, value) :
+    TypeRegistry.Has(kind) ? FromKind(schema_, references_, value) :
+    false
+  )
+  // --------------------------------------------------------------
+  // Refinement
+  // --------------------------------------------------------------
+  // prettier-ignore
+  return typeCheck && IsRefine(schema_) 
+    ? FromRefine(schema_, references_, value) 
+    : typeCheck
 }
 // --------------------------------------------------------------------------
 // Check
