@@ -1703,6 +1703,7 @@ The following is a list of community packages that offer general tooling, extend
 | [h3-typebox](https://github.com/kevinmarrec/h3-typebox) | Schema validation utilities for h3 using TypeBox & Ajv |
 | [http-wizard](https://github.com/flodlc/http-wizard) | Type safe http client library for Fastify |
 | [openapi-box](https://github.com/geut/openapi-box) | Generate TypeBox types from OpenApi IDL + Http client library |
+| [prismabox](https://github.com/m1212e/prismabox) | Converts a prisma.schema to typebox schema matching the database models |
 | [schema2typebox](https://github.com/xddq/schema2typebox)  | Creating TypeBox code from Json Schemas |
 | [sveltekit-superforms](https://github.com/ciscoheat/sveltekit-superforms)  | A comprehensive SvelteKit form library for server and client validation |
 | [ts2typebox](https://github.com/xddq/ts2typebox) | Creating TypeBox code from Typescript types |
