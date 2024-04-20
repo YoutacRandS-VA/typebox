@@ -76,10 +76,10 @@ License MIT
   - [Conditional](#types-conditional)
   - [Intrinsic](#types-intrinsic)
   - [Rest](#types-rest)
-  - [Transform](#types-transform)
-  - [Refine](#types-refine)
-  - [Guard](#types-guard)
   - [Unsafe](#types-unsafe)
+  - [Refine](#types-refine)
+  - [Transform](#types-transform)
+  - [Guard](#types-guard)
   - [Strict](#types-strict)
 - [Values](#values)
   - [Parse](#values-parse)
@@ -1055,6 +1055,34 @@ const U = Type.Union(R)                              // const T: TUnion<[
                                                      // ]>
 ```
 
+<a name='types-unsafe'></a>
+
+### Unsafe Types
+
+TypeBox supports user defined types with Unsafe. This type enables you to specify both schema representation and inference type. The following creates an Unsafe type for a number schema that infers as string.
+
+```typescript
+const T = Type.Unsafe<string>({ type: 'number' })    // const T = { type: 'number' }
+
+type T = Static<typeof T>                            // type T = string
+```
+
+<a name='types-refine'></a>
+
+### Refine Types
+
+TypeBox types can be augmented with additional runtime checks using the Refine function. The Refine function will apply non-serializable checking functions to the underlying schematics which will be invoked during validation of a type. Refine types can only be validated via Value and TypeCompiler submodules. The following uses Refine to apply runtime checks to an Unsafe type.
+
+```typescript
+const UnsafeByte = Type.Unsafe<number>({ type: 'byte' })
+
+const Byte = Type.Refine(UnsafeByte)
+  .Check((value) => typeof value === 'number')
+  .Check((value) => value >= 0)
+  .Check((value) => value < 256)
+  .Done()
+```
+
 <a name='types-transform'></a>
 
 ### Transform Types
@@ -1068,57 +1096,6 @@ const Timestamp = Type.Transform(Type.Number())
 
 const D = Value.Decode(Timestamp, 0)                 // const D = Date(1970-01-01T00:00:00.000Z)
 const E = Value.Encode(Timestamp, D)                 // const E = 0
-```
-
-<a name='types-refine'></a>
-
-### Refine Types
-
-TypeBox supports additional runtime type checking with the Refine function. This function will apply a set of additional checks to a type which are run immediately following schema validation. Refine types are only supported with Value and TypeCompiler submodules.
-
-```typescript
-const T = Type.Object({                              
-  x: Type.Number(),
-  y: Type.Number()
-})
-
-const S = Type.Refine(T)
-  .Check(value => value.x === value.y, 'x must equal y')
-  .Done()
-
-const R = Value.Check(S, { x: 0, y: 1 })             // const R = false
-
-const E = [...Value.Errors(S, { x: 0, y: 1 })]       // const E = [{
-                                                     //   message: 'x and y must be equal',
-                                                     //   value: { x: 0, y: 1 },
-                                                     //   ...
-                                                     //  }]
-```
-
-<a name='types-unsafe'></a>
-
-### Unsafe Types
-
-TypeBox supports user defined types with Unsafe. This type enables you to specify both schema representation and inference type. The following creates an Unsafe type for a number schema that infers as string.
-
-```typescript
-const T = Type.Unsafe<string>({ type: 'number' })    // const T = { type: 'number' }
-
-type T = Static<typeof T>                            // type T = string
-```
-
-The Unsafe type is often used to create extended schematics for specifications such as OpenAPI.
-
-```typescript
-const Nullable = <T extends TSchema>(schema: T) => 
-  Type.Unsafe<Static<T> | null>({ ...schema, nullable: true })
-```
-TypeBox checks Unsafe as Any. Use Refine to apply additional checking rules.
-```typescript
-const Nullable = <T extends TSchema>(schema: T) =>
-  Type.Refine(Type.Unsafe<Static<T> | null>({ ...schema, nullable: true }))
-    .Check(value => value === null ? true : Value.Check(schema, value))
-    .Done()
 ```
 
 <a name='types-guard'></a>
