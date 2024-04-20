@@ -457,10 +457,21 @@ export namespace TypeCompiler {
     yield `kind('${schema[Kind]}', ${instance}, ${value})`
   }
   function* FromRefine(schema: { [RefineKind]: Refinement[] }, references: TSchema[], value: string): IterableIterator<string> {
+    // Optimization: Refine functions may be called multiple times on the same type. This occurs
+    // if a type with refinements is embedded multiple times within the compiled type. Rather than
+    // generating duplicate entries in the refinement map, we can test if the refinement check
+    // function is already stored, if so, we return the instance key, otherwise create.
+    function ResolveRefinement(refinement: Refinement): number {
+      for (const [key, existing] of state.refinements) {
+        if (existing.check === refinement.check) return key
+      }
+      const key = state.refinements.size
+      state.refinements.set(key, refinement)
+      return key
+    }
     for (const refinement of schema[RefineKind]) {
-      const instance = state.refinements.size
-      state.refinements.set(instance, refinement)
-      yield `refine(${instance}, ${value})`
+      const key = ResolveRefinement(refinement)
+      yield `refine(${key}, ${value})`
     }
   }
   function* Visit(schema: TSchema, references: TSchema[], value: string, useHoisting: boolean = true): IterableIterator<string> {
