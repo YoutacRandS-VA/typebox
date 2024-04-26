@@ -53,7 +53,7 @@ type StaticParameters<T extends TSchema[], P extends unknown[], Acc extends unkn
 )
 // prettier-ignore
 type StaticConstructor<T extends TSchema[], U extends TSchema, P extends unknown[]> =
-  Ensure<new (...params: StaticParameters<T, P>) => StaticReturnType<U, P>>
+  Ensure<new (...param: StaticParameters<T, P>) => StaticReturnType<U, P>>
 // ------------------------------------------------------------------
 // TConstructor
 // ------------------------------------------------------------------
@@ -72,5 +72,5 @@ export function Constructor<T extends TSchema[], U extends TSchema>(parameters: 
     type: 'Constructor',
     parameters: CloneRest(parameters),
     returns: CloneType(returns),
-  } as unknown as TConstructor<T, U>
+  } as never
 }

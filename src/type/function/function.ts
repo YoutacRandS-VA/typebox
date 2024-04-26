@@ -53,7 +53,7 @@ type StaticParameters<T extends TSchema[], P extends unknown[], Acc extends unkn
 )
 // prettier-ignore
 type StaticFunction<T extends TSchema[], U extends TSchema, P extends unknown[]> =
-  Ensure<(...params: StaticParameters<T, P>) => StaticReturnType<U, P>>
+  Ensure<(...param: StaticParameters<T, P>) => StaticReturnType<U, P>>
 
 // ------------------------------------------------------------------
 // TFunction
@@ -73,5 +73,5 @@ export function Function<T extends TSchema[], U extends TSchema>(parameters: [..
     type: 'Function',
     parameters: CloneRest(parameters),
     returns: CloneType(returns),
-  } as unknown as TFunction<T, U>
+  } as never
 }

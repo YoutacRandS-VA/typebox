@@ -20,9 +20,9 @@ const A = Type.Object({
 
 console.log(Byte)
 console.log(TypeCompiler.Code(A))
-console.log(Value.Check(A, { x: 0, y: 0, z: 0 })) 
-console.log(Value.Check(Byte, 255)) 
-console.log(Value.Check(Byte, -1)) 
+console.log(Value.Check(A, { x: 0, y: 0, z: 0 }))
+console.log(Value.Check(Byte, 255))
+console.log(Value.Check(Byte, -1))
 console.log(Value.Check(Byte, NaN))
 
 // Todo: Error Tests

@@ -54,13 +54,13 @@ export class TransformEncodeBuilder<T extends TSchema, D extends TransformFuncti
     return { ...schema, [TransformKind]: { encode: wrapped_encode, decode: wrapped_decode } }
   }
   private EncodeSchema<E extends TransformFunction<ReturnType<D>, StaticDecode<T>>>(encode: E, schema: TSchema) {
-    return { ...schema as TSchema, [TransformKind]: { decode: this.decode, encode } }
+    return { ...schema, [TransformKind]: { decode: this.decode, encode } }
   }
   public Encode<E extends TransformFunction<ReturnType<D>, StaticDecode<T>>>(encode: E): TTransform<T, ReturnType<D>> {
     const schema = CloneType(this.schema)
     return (
       IsTransform(schema) ? this.EncodeTransform(encode, schema): this.EncodeSchema(encode, schema)
-    ) as unknown as TTransform<T, ReturnType<D>>
+    ) as never
   }
 }
 // ------------------------------------------------------------------
