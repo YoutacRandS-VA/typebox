@@ -6,21 +6,14 @@ import { Kind, TypeRegistry, FormatRegistry } from '@sinclair/typebox'
 const UnsafeByte = Type.Unsafe<number>({ type: 'byte' })
 
 const Byte = Type.Refine(UnsafeByte)
-  .Check((value) => typeof value === 'number')
-  .Check((value) => !isNaN(value), { message: 'Must not be NaN', x: 100 })
+  .Check((value) => typeof value === 'number', { message: 'Expected number' })
+  .Check((value) => !isNaN(value), { message: 'Expected non NaN number' })
   .Check((value) => value >= 0, { message: 'Must be greater than 0' })
-  .Check((value) => value < 256, { message: 'Must be something' })
+  .Check((value) => value < 256, { message: 'Must be less than 256' })
   .Done()
 
-const A = Type.Object({
-  x: Byte,
-  y: Byte,
-  z: Byte,
-})
-
-console.dir(A, { depth: 100 })
-console.log(TypeCompiler.Code(A))
-console.log(Value.Errors(Byte, 'asdsa').Take(10))
+const A = Type.Array(Byte)
+console.log(Value.Errors(A, [0, 2, 3, 10000]).Take(10))
 
 // Todo: Error Tests
 // Todo: Investigate Error Propogation for Refinements

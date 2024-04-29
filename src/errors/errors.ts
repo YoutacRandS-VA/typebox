@@ -76,7 +76,7 @@ import { IsArray, IsUint8Array, IsDate, IsPromise, IsFunction, IsAsyncIterator, 
 // ------------------------------------------------------------------
 // ValueGuard
 // ------------------------------------------------------------------
-import { IsRefine, IsUnknown } from '../type/guard/type'
+import { IsRefine } from '../type/guard/type'
 // ------------------------------------------------------------------
 // ValueErrorType
 // ------------------------------------------------------------------
@@ -199,7 +199,7 @@ export class ValueErrorIterator {
 // Create
 // --------------------------------------------------------------------------
 function CreateRefinementError(schema: TSchema, refinement: Refinement, path: string, value: unknown): ValueError {
-  return { type: ValueErrorType.Refinement, schema, path, value, message: refinement.message || '' }
+  return { type: ValueErrorType.Refinement, schema, path, value, message: refinement.message }
 }
 function CreateError(errorType: ValueErrorType, schema: TSchema, path: string, value: unknown): ValueError {
   return { type: errorType, schema, path, value, message: GetErrorFunction()({ errorType, path, schema, value }) }
