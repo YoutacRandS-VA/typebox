@@ -32,7 +32,7 @@ import { IsRefinement } from '../type/guard/type'
 import { ValueErrorType } from './errors'
 
 /** Creates an error message using en-US as the default locale */
-export function DefaultErrorFunction(error: ErrorFunctionParameter) {
+export function DefaultErrorFunction(error: ErrorFunctionParameter): string {
   switch (error.errorType) {
     case ValueErrorType.ArrayContains:
       return 'Expected array to contain at least one matching value'
@@ -128,7 +128,7 @@ export function DefaultErrorFunction(error: ErrorFunctionParameter) {
       return 'Required property'
     case ValueErrorType.Promise:
       return 'Expected Promise'
-    case ValueErrorType.Refine:
+    case ValueErrorType.Refinement:
       return IsRefinement(error.schema) ? error.schema.message : 'Refinement Error'
     case ValueErrorType.RegExp:
       return 'Expected string to match regular expression'

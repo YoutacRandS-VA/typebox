@@ -132,7 +132,7 @@ export enum ValueErrorType {
   Object,
   Promise,
   RegExp,
-  Refine,
+  Refinement,
   StringFormatNotFound,
   StringFormat,
   StringMaxLength,
@@ -199,7 +199,7 @@ export class ValueErrorIterator {
 // Create
 // --------------------------------------------------------------------------
 function CreateRefinementError(schema: TSchema, refinement: Refinement, path: string, value: unknown): ValueError {
-  return { type: ValueErrorType.Refine, schema, path, value, message: refinement.message }
+  return { type: ValueErrorType.Refinement, schema, path, value, message: refinement.message || '' }
 }
 function CreateError(errorType: ValueErrorType, schema: TSchema, path: string, value: unknown): ValueError {
   return { type: errorType, schema, path, value, message: GetErrorFunction()({ errorType, path, schema, value }) }
@@ -541,7 +541,9 @@ function* FromKind(schema: TSchema, references: TSchema[], path: string, value: 
 }
 function* FromRefine(schema: TSchema & Record<PropertyKey, unknown> & { [RefineKind]: Refinement[] }, references: TSchema[], path: string, value: any): IterableIterator<ValueError> {
   for (const refinement of schema[RefineKind]) {
-    if (!refinement.check(value)) yield CreateRefinementError(schema, refinement, path, value)
+    if (refinement.check(value)) continue
+    // only generate one refinement error per type
+    return yield CreateRefinementError(schema, refinement, path, value)
   }
 }
 function* Visit<T extends TSchema>(schema: T, references: TSchema[], path: string, value: any): IterableIterator<ValueError> {

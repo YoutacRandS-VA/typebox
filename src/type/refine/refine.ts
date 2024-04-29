@@ -32,20 +32,25 @@ import { Static } from '../static/index'
 import { CloneType } from '../clone/type'
 import { IsRefine } from '../guard/type'
 
-export interface Refinement {
-  check: RefineCheckFunction
+export interface RefinementCheckOptions {
+  [key: string]: any
   message: string
 }
-
+export interface Refinement extends RefinementCheckOptions {
+  check: RefineCheckFunction
+}
 export type RefineCheckFunction<T extends TSchema = TSchema, S = Static<T>> = (value: S) => boolean
 
+function DefaultRefinementCheckOptions(): RefinementCheckOptions {
+  return { message: 'Invalid' }
+}
 export class RefineBuilder<T extends TSchema> {
   constructor(private readonly schema: T, private readonly refinements: Refinement[]) {}
   /** Adds a refinement check to this type */
-  public Check(check: RefineCheckFunction<T>, message: string = ''): RefineBuilder<T> {
-    return new RefineBuilder(this.schema, [...this.refinements, { check, message }])
+  public Check(check: RefineCheckFunction<T>, options: RefinementCheckOptions = DefaultRefinementCheckOptions()): RefineBuilder<T> {
+    return new RefineBuilder(this.schema, [...this.refinements, { check, ...options }])
   }
-  /** Applies refinement checks and returns the type */
+  /** Completes the refinement and returns the type. */
   public Done(): T {
     return CloneType(this.schema, { [RefineKind]: [...this.refinements] })
   }

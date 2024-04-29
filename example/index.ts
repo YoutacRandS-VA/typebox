@@ -7,9 +7,9 @@ const UnsafeByte = Type.Unsafe<number>({ type: 'byte' })
 
 const Byte = Type.Refine(UnsafeByte)
   .Check((value) => typeof value === 'number')
-  .Check((value) => !isNaN(value))
-  .Check((value) => value >= 0)
-  .Check((value) => value < 256)
+  .Check((value) => !isNaN(value), { message: 'Must not be NaN', x: 100 })
+  .Check((value) => value >= 0, { message: 'Must be greater than 0' })
+  .Check((value) => value < 256, { message: 'Must be something' })
   .Done()
 
 const A = Type.Object({
@@ -18,12 +18,9 @@ const A = Type.Object({
   z: Byte,
 })
 
-console.log(Byte)
+console.dir(A, { depth: 100 })
 console.log(TypeCompiler.Code(A))
-console.log(Value.Check(A, { x: 0, y: 0, z: 0 }))
-console.log(Value.Check(Byte, 255))
-console.log(Value.Check(Byte, -1))
-console.log(Value.Check(Byte, NaN))
+console.log(Value.Errors(Byte, 'asdsa').Take(10))
 
 // Todo: Error Tests
 // Todo: Investigate Error Propogation for Refinements
